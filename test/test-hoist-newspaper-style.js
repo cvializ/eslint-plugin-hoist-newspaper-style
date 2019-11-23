@@ -1,5 +1,3 @@
-
-// In your tests:
 const rule = require('../rules/hoist-newspaper-style');
 const { RuleTester } = require('eslint');
 
@@ -12,6 +10,15 @@ ruleTester.run('hoist-newspaper-style', rule, {
                 function y() {}
             `,
         },
+        {
+            code: `
+                class X {
+                    x() {}
+                    y() {}
+                }
+            `,
+            parserOptions: { ecmaVersion: 6 },
+        },
     ],
     invalid: [
         {
@@ -23,10 +30,28 @@ ruleTester.run('hoist-newspaper-style', rule, {
                 function x() {}
                 function y() {}
             `,
-            parserOptions: { ecmaVersion: 6 },
             errors: [
                 { message: 'FunctionDeclaration y not sorted', type: 'FunctionDeclaration' },
                 { message: 'FunctionDeclaration x not sorted', type: 'FunctionDeclaration' },
+            ],
+        },
+        {
+            code: `
+                class X {
+                    y() {}
+                    x() {}
+                }
+            `,
+            output: `
+                class X {
+                    x() {}
+                    y() {}
+                }
+            `,
+            parserOptions: { ecmaVersion: 6 },
+            errors: [
+                { message: 'MethodDefinition y not sorted', type: 'MethodDefinition' },
+                { message: 'MethodDefinition x not sorted', type: 'MethodDefinition' },
             ],
         },
     ]

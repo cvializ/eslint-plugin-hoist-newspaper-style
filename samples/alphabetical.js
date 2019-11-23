@@ -7,9 +7,6 @@ function def() {
 
 }
 
-
-
-
 class X {
     methodB() { }
     methodA() { }
