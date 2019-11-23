@@ -1,0 +1,17 @@
+{
+  "name": "eslint-hoist-newspaper-style-rule",
+  "version": "1.0.0",
+  "description": "Sort JS code in the newspaper style",
+  "main": "index.js",
+  "scripts": {
+    "start": "./node_modules/.bin/eslint samples/*.js",
+    "debug": "node --inspect-brk ./node_modules/.bin/eslint samples/*.js",
+    "test": "node ./test/test-hoist-newspaper-style.js",
+    "test-debug": "node --inspect-brk ./test/test-hoist-newspaper-style.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "eslint": "^6.7.0"
+  }
+}
