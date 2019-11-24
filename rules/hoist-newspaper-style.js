@@ -1,3 +1,30 @@
+/**
+ * These rules ensure that hoistable functions are below all calls or other
+ * reference to those functions. This is known as "newspaper" style.
+ *
+ * For all function calls, there should be no reference to that function below its definition.
+ * - We have a function declaration
+ * - We know it is referenced
+ * - We find the last call that reference it.
+ * - We move the function to the first point in its start scope after the last reference.
+ *
+ * Possible next features:
+ * - Add config option to ensure the definition is after the first reference
+ * - Add config option to allow the function to be defined before references but not calls.
+ * - Make sure it plays nice with other eslint rules, like no-use-before-define?
+ */
+
+const {
+  getIdentifierReferences,
+  getSiblingFrom,
+  isEveryNodeAboveNode,
+  getClassMethodDefinitionReferences,
+  getLatestNode,
+} = require('../utils/estree');
+const {
+  getLastMatch,
+} = require('../utils/string');
+
 module.exports = {
   create: function(context) {
     return {
@@ -7,104 +34,71 @@ module.exports = {
   },
 };
 
-
 function hoistFunctionDeclaration(context, node) {
-  const siblings = node.parent.body
-    .filter(n => isFunctionDeclaration(n));
-  const names = siblings.map(n => getFunctionDeclarationName(n));
+  const declarationScope = context.getScope();
+  // We get the upper scope since declarationScope only includes variables
+  // available inside the FunctionDeclaration we are currently visiting.
+  const upperScope = declarationScope.upper;
 
-  if (!isSortedAscending(names)) {
+  const references = getIdentifierReferences(upperScope, node.id);
+  if (references.length === 0) {
+    return;
+  }
+
+  const referenceIdentifiers =
+      references.map(reference => reference.identifier);
+  if (!isEveryNodeAboveNode(referenceIdentifiers, node.id)) {
+    reportHoist(context, node, references);
+  }
+
+  function reportHoist(context, node, references) {
     context.report({
       node,
-      message: `FunctionDeclaration ${getFunctionDeclarationName(node)} not sorted`,
+      message: `FunctionDeclaration ${node.id.name} found above reference.`,
       fix: (fixer) => {
-        const sourceRanges = siblings.map(n => getNodeRange(n));
-        const sortedSiblings = siblings.sort(
-          (a, b) => (
-            compare(
-              getFunctionDeclarationName(a),
-              getFunctionDeclarationName(b)
-            )
-          ));
-
-        const fixes = sourceRanges.map((range, i) => {
-          const sourceText = context.getSource(sortedSiblings[i]);
-          return fixer.replaceTextRange(range, sourceText);
-        });
-
-        return fixes;
-      },
-    });
+        const latestReference = getLatestNode(references);
+        // Go up the tree until we get to the element that shares the same
+        // block as the latest reference.
+        const sibling = getSiblingFrom(node, latestReference.identifier);
+        const siblingText = context.getSource(sibling);
+        const whitespaceRe = /\n(\s+)./g;
+        const lastLineIndent = getLastMatch(siblingText, whitespaceRe) || '';
+        const nodeText = '\n' + lastLineIndent + context.getSource(node);
+        return [
+          fixer.remove(node),
+          fixer.insertTextAfter(sibling, nodeText),
+        ];
+      }
+    })
   }
 }
+
 
 function hoistMethodDefinition(context, node) {
-  const siblings = node.parent.body
-    .filter(n => isMethodDefinition(n));
-  const names = siblings.map(n => getMethodDefinitionName(n));
+  const references = getClassMethodDefinitionReferences(node);
+  if (references.length === 0) {
+    return;
+  }
 
-  if (!isSortedAscending(names)) {
+  if (!isEveryNodeAboveNode(references, node)) {
     context.report({
       node,
-      message: `MethodDefinition ${getMethodDefinitionName(node)} not sorted`,
+      message: `MethodDefinition ${node.key.name} found above reference.`,
       fix: (fixer) => {
-        const sourceRanges = siblings.map(n => getNodeRange(n));
-        const sortedSiblings = siblings.sort(
-          (a, b) => (
-            compare(
-              getMethodDefinitionName(a),
-              getMethodDefinitionName(b)
-            )
-          ));
-
-        const fixes = sourceRanges.map((range, i) => {
-          const sourceText = context.getSource(sortedSiblings[i]);
-          return fixer.replaceTextRange(range, sourceText);
-        });
-
-        return fixes;
-      },
-    });
+        const latestReference = getLatestNode(references);
+        // Get last reference node
+        // Move the method definition below the last reference
+        const sibling = getSiblingFrom(node, latestReference);
+        const siblingText = context.getSource(sibling);
+        const whitespaceRe = /\n(\s+)./g;
+        const lastLineIndent = getLastMatch(siblingText, whitespaceRe) || '';
+        const nodeText = '\n' + lastLineIndent + context.getSource(node);
+        return [
+          fixer.remove(node),
+          fixer.insertTextAfter(sibling, nodeText),
+        ];
+      }
+    })
   }
 }
 
-function compare(a, b) {
-  if (a === null && b === null) {
-    return 0;
-  }
-  if (a === null && typeof b === 'string') {
-    return 1;
-  }
-  if (b === null && typeof a === 'string') {
-    return -1;
-  }
-
-  return String.prototype.localeCompare.call(a, b);
-}
-
-function getNodeRange(node) {
-  return node.range;
-}
-
-function getFunctionDeclarationName(node) {
-  return node.id.name;
-}
-
-function isFunctionDeclaration(node) {
-  return node.type === 'FunctionDeclaration'
-}
-
-function getMethodDefinitionName(node) {
-  return node.key.name;
-}
-
-function isMethodDefinition(node) {
-  return node.type === 'MethodDefinition';
-}
-
-function isSortedAscending(array) {
-  if (array.length <= 1) {
-    return true;
-  }
-  return array.every((item, i) => i === 0 ? true : item >= array[i - 1]);
-}

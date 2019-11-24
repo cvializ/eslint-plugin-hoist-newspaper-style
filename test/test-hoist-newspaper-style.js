@@ -6,15 +6,19 @@ ruleTester.run('hoist-newspaper-style', rule, {
     valid: [
         {
             code: `
-                function x() {}
-                function y() {}
+                function eat() {
+                    sleep();
+                }
+                function sleep() {}
             `,
         },
         {
             code: `
-                class X {
-                    x() {}
-                    y() {}
+                class Day {
+                    eat() {
+                        this.sleep()
+                    }
+                    sleep() {}
                 }
             `,
             parserOptions: { ecmaVersion: 6 },
@@ -23,35 +27,43 @@ ruleTester.run('hoist-newspaper-style', rule, {
     invalid: [
         {
             code: `
-                function y() {}
-                function x() {}
+                function sleep() {}
+                function eat() {
+                    sleep();
+                }
             `,
             output: `
-                function x() {}
-                function y() {}
+                ${/* dummy substitution to preserve preceding whitespace */''}
+                function eat() {
+                    sleep();
+                }
+                function sleep() {}
             `,
             errors: [
-                { message: 'FunctionDeclaration y not sorted', type: 'FunctionDeclaration' },
-                { message: 'FunctionDeclaration x not sorted', type: 'FunctionDeclaration' },
+                { message: 'FunctionDeclaration sleep found above reference.', type: 'FunctionDeclaration' },
             ],
         },
         {
             code: `
-                class X {
-                    y() {}
-                    x() {}
+                class Day {
+                    sleep() {}
+                    eat() {
+                        this.sleep();
+                    }
                 }
             `,
             output: `
-                class X {
-                    x() {}
-                    y() {}
+                class Day {
+                    ${/* dummy substitution to preserve preceding whitespace */''}
+                    eat() {
+                        this.sleep();
+                    }
+                    sleep() {}
                 }
             `,
             parserOptions: { ecmaVersion: 6 },
             errors: [
-                { message: 'MethodDefinition y not sorted', type: 'MethodDefinition' },
-                { message: 'MethodDefinition x not sorted', type: 'MethodDefinition' },
+                { message: 'MethodDefinition sleep found above reference.', type: 'MethodDefinition' },
             ],
         },
     ]

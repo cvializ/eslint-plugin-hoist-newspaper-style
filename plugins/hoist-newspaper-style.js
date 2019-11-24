@@ -1,7 +1,9 @@
-const rule = require('../rules/hoist-newspaper-style');
+const hoistAlphabetical = require('../rules/hoist-alphabetical');
+const hoistNewspaperStyle = require('../rules/hoist-alphabetical');
 
 module.exports = {
     "rules": {
-        "hoist-newspaper-style": rule,
+        "hoist-alphabetical": hoistAlphabetical,
+        "hoist-newspaper-style": hoistNewspaperStyle,
     }
 }
