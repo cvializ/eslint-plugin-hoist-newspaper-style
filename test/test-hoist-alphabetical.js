@@ -1,4 +1,4 @@
-const rule = require('../rules/alphabetical');
+const rule = require('../rules/hoist-alphabetical');
 const { RuleTester } = require('eslint');
 
 var ruleTester = new RuleTester();
